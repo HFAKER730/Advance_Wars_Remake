@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>阵营建模提案 · 前线指令</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #141e22;
+        --panel: #1c2a2e;
+        --line: #2f4448;
+        --text: #e6e9de;
+        --muted: #93a5a2;
+        --accent: #f27c56;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      }
+      header {
+        padding: 22px 26px 16px;
+        border-bottom: 1px solid var(--line);
+        position: sticky;
+        top: 0;
+        background: linear-gradient(180deg, #182528, #141e22);
+        z-index: 5;
+      }
+      h1 { margin: 0 0 4px; font-size: 19px; letter-spacing: .04em; }
+      h1 small { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 10px; }
+      .lede { margin: 0; color: var(--muted); max-width: 940px; }
+      .controls { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 14px; align-items: flex-end; }
+      .control { display: flex; flex-direction: column; gap: 5px; }
+      .control > span { font-size: 11px; letter-spacing: .12em; color: var(--muted); }
+      .seg { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+      .seg button {
+        background: transparent; color: var(--text); border: 0; padding: 5px 11px;
+        font: inherit; cursor: pointer; border-right: 1px solid var(--line);
+      }
+      .seg button:last-child { border-right: 0; }
+      .seg button[aria-pressed="true"] { background: var(--accent); color: #1b2422; font-weight: 600; }
+      label.check { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
+      main { padding: 22px 26px 60px; }
+      section { margin-bottom: 38px; }
+      section > h2 {
+        font-size: 13px; letter-spacing: .16em; color: var(--muted);
+        margin: 0 0 6px; border-bottom: 1px solid var(--line); padding-bottom: 8px;
+      }
+      section > p.note { margin: 0 0 14px; color: var(--muted); max-width: 940px; }
+      .legend { display: flex; flex-wrap: wrap; gap: 12px; }
+      .swatch { border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px; background: var(--panel); min-width: 210px; }
+      .swatch b { display: block; font-size: 13px; }
+      .swatch i { display: block; font-style: normal; color: var(--muted); font-size: 11px; margin-bottom: 6px; }
+      .chips { display: flex; gap: 3px; }
+      .chips i { width: 24px; height: 18px; display: block; border-radius: 2px; }
+      .matrix { overflow-x: auto; }
+      table { border-collapse: collapse; }
+      th, td { border: 1px solid var(--line); padding: 3px; text-align: center; }
+      th { font-size: 11px; letter-spacing: .1em; color: var(--muted); font-weight: 500; background: var(--panel); }
+      th.row-head { text-align: left; padding-left: 10px; min-width: 128px; font-size: 12px; letter-spacing: 0; white-space: nowrap; }
+      th.row-head small { display: block; color: var(--muted); font-weight: 400; }
+      td { background: #1a2629; }
+      td canvas { display: block; margin: auto; image-rendering: pixelated; }
+      .strip { display: flex; flex-wrap: wrap; gap: 2px; padding: 10px; background: #1a2629; border: 1px solid var(--line); width: max-content; }
+      .strip canvas { display: block; image-rendering: pixelated; float: left; }
+      .strip .tile { width: 40px; height: 40px; }
+      .row-flex { display: flex; gap: 6px; justify-content: center; }
+      footer { color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+      code { background: #223135; padding: 1px 5px; border-radius: 3px; color: #cfd9c6; }
+      .answers p { margin: 0 0 8px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>阵营建模提案<small>FACTION MODEL SHEET / 4 ARMIES</small></h1>
+      <p class="lede">
+        每类兵种共用一套轮廓（决定「这是什么兵」），四个阵营各自换一套皮肤与配套细节（决定「这是谁」）。
+        皮肤不只有颜色：炮塔外形、履带包覆、舱盖材质、附加装备都按阵营区分，因此 1× 缩放下也能靠剪影认人。
+      </p>
+      <div class="controls">
+        <div class="control">
+          <span>阵营</span>
+          <div class="seg" id="faction-filter">
+            <button data-value="all" aria-pressed="true">全部</button>
+            <button data-value="red">红军</button>
+            <button data-value="blue">蓝军</button>
+            <button data-value="yellow">黄军</button>
+            <button data-value="green">绿军</button>
+          </div>
+        </div>
+        <div class="control">
+          <span>缩放</span>
+          <div class="seg" id="zoom-filter">
+            <button data-value="1">1×</button>
+            <button data-value="2">2×</button>
+            <button data-value="4" aria-pressed="true">4×</button>
+            <button data-value="6">6×</button>
+          </div>
+        </div>
+        <div class="control">
+          <span>朝向（陆军）</span>
+          <div class="seg" id="facing-filter">
+            <button data-value="side" aria-pressed="true">侧向</button>
+            <button data-value="up">背面</button>
+            <button data-value="down">正面</button>
+          </div>
+        </div>
+        <div class="control">
+          <span>动作（陆军）</span>
+          <div class="seg" id="action-filter">
+            <button data-value="idle" aria-pressed="true">待机</button>
+            <button data-value="move">移动</button>
+            <button data-value="attack">攻击</button>
+            <button data-value="hit">受击</button>
+          </div>
+        </div>
+        <label class="check"><input type="checkbox" id="bg-toggle" checked /> 显示地形底</label>
+      </div>
+    </header>
+
+    <main>
+      <section>
+        <h2>阵营色板</h2>
+        <p class="note">
+          每套皮肤七个色槽：四个漆色按明度严格递减，另有强调色与金属色。四条坡道结构一致，
+          切换阵营不会改变单位的明暗关系，只改变色相与配套细节。
+        </p>
+        <div class="legend" id="legend"></div>
+      </section>
+
+      <section>
+        <h2>兵种 × 阵营 全表</h2>
+        <p class="note">12 个兵种（8 陆军 + 2 空中 + 2 舰艇）× 4 阵营。空中与舰艇在本提案中只做侧向。</p>
+        <div class="matrix"><table id="matrix"></table></div>
+      </section>
+
+      <section>
+        <h2>1× 实际大小与地形对照</h2>
+        <p class="note">
+          地图格为 40×40 像素，单位即按此尺寸绘制。下面按 1:1 排布，用于确认四色在同一片地形上是否仍可区分。
+          地形底是按渲染器配色近似重绘，仅用于对比明暗，不是运行时渲染结果。
+        </p>
+        <div class="strip" id="strip"></div>
+      </section>
+
+      <section>
+        <h2>对照：当前实现</h2>
+        <p class="note">
+          现有 <code>public/unit-art.mjs</code> 的 8 个陆军剪影对所有阵营完全相同，只有调色板不同。
+          右侧是新方案同一兵种。
+        </p>
+        <div class="matrix"><table id="compare"></table></div>
+      </section>
+
+      <section>
+        <h2>接入前需要确认的设计点</h2>
+        <div class="answers" id="open-questions"></div>
+      </section>
+
+      <footer>预览页由 <code>tools/preview-art.mjs</code> 提供，只读取 <code>public/art/</code> 与 <code>public/unit-art.mjs</code>，不修改游戏代码。</footer>
+    </main>
+
+    <script type="module">
+      import { FACTIONS, FACTION_STYLES, STYLE_SLOTS, SAMPLE_UNITS } from "/art/faction-style.mjs";
+      import { paintLandUnit } from "/art/faction-land.mjs";
+      import { paintAirUnit } from "/art/faction-air.mjs";
+      import { paintSeaUnit } from "/art/faction-sea.mjs";
+      import { paintLandDirection } from "/art/faction-direction.mjs";
+      import { paintUnitArtwork } from "/unit-art.mjs";
+
+      // 旧实现的四色调色板，与 renderer.mjs 的 TEAM_PALETTES 一致。这里内联，
+      // 避免预览页把整条渲染依赖（engine/combat-scene）拉进来。
+      const LEGACY_PALETTES = [
+        ["#f79a75", "#df634c", "#a83c36", "#713134"],
+        ["#91d5ef", "#4ba5d1", "#2e668f", "#29415f"],
+        ["#ffe499", "#dfbd56", "#a27b33", "#6a522d"],
+        ["#c2acef", "#9278ce", "#634da0", "#44385f"],
+      ];
+
+      const state = { faction: "all", zoom: 4, facing: "side", action: "idle", backdrop: true };
+      const painters = {
+        foot: (ctx, id, faction) => paintLandUnit(ctx, id, faction, -1),
+        land: (ctx, id, faction) => paintLandUnit(ctx, id, faction, -1),
+        air: (ctx, id, faction) => paintAirUnit(ctx, id, faction, -1),
+        sea: (ctx, id, faction) => paintSeaUnit(ctx, id, faction, -1),
+      };
+
+      const GROUND = ["#76966b", "#7d9e70", "#749468", "#809d71"];
+      function paintTerrain(ctx, kind) {
+        if (kind === "water") {
+          ctx.fillStyle = "#578f9c"; ctx.fillRect(0, 0, 40, 40);
+          ctx.fillStyle = "#609aa4"; ctx.fillRect(0, 0, 40, 2);
+        } else if (kind === "forest") {
+          ctx.fillStyle = GROUND[1]; ctx.fillRect(0, 0, 40, 40);
+          for (const [x, y, w, h, c] of [
+            [6, 10, 12, 12, "#315e51"], [4, 6, 14, 10, "#3c6e53"], [7, 3, 9, 4, "#4e805c"],
+            [22, 20, 12, 12, "#315e51"], [20, 16, 14, 10, "#3e7059"],
+          ]) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
+        } else if (kind === "road") {
+          ctx.fillStyle = GROUND[2]; ctx.fillRect(0, 0, 40, 40);
+          ctx.fillStyle = "#8d9272"; ctx.fillRect(0, 7, 40, 26);
+          ctx.fillStyle = "#b4ad89"; ctx.fillRect(0, 9, 40, 22);
+          ctx.fillStyle = "#c4bd99"; ctx.fillRect(12, 19, 16, 2);
+        } else if (kind === "city") {
+          ctx.fillStyle = GROUND[0]; ctx.fillRect(0, 0, 40, 40);
+          ctx.fillStyle = "#78876e"; ctx.fillRect(4, 12, 32, 26);
+          ctx.fillStyle = "#b2b294"; ctx.fillRect(5, 11, 30, 25);
+          ctx.fillStyle = "#c3c1a2"; ctx.fillRect(8, 14, 24, 19);
+        } else {
+          ctx.fillStyle = GROUND[0]; ctx.fillRect(0, 0, 40, 40);
+          ctx.fillStyle = "#86a675";
+          ctx.fillRect(4, 6, 3, 1); ctx.fillRect(22, 27, 2, 1); ctx.fillRect(30, 12, 2, 1);
+        }
+      }
+      const terrainFor = (unit) =>
+        unit.family === "sea" ? "water" : unit.family === "air" ? "plain"
+          : unit.family === "foot" ? "plain" : "road";
+
+      function paintUnit(ctx, unit, faction, phase) {
+        if (state.facing === "side" || unit.family === "air" || unit.family === "sea") {
+          painters[unit.family](ctx, unit.id, faction);
+          return;
+        }
+        const step = state.action === "move" ? Math.floor(phase * 6) % 6 : -1;
+        ctx.save();
+        if (state.action === "idle" && phase > 0.28 && phase < 0.58) ctx.translate(0, -1);
+        if (state.action === "hit" && phase > 0.18 && phase < 0.46)
+          ctx.filter = "brightness(1.9) saturate(0.3)";
+        if (state.action === "attack" && phase > 0.3 && phase < 0.55)
+          ctx.translate(state.facing === "up" ? 2 : -2, 0);
+        paintLandDirection(ctx, unit.id, faction, state.facing, step);
+        ctx.restore();
+        if (state.action === "attack" && phase > 0.3 && phase < 0.78) {
+          const originY = state.facing === "up" ? 3 : 36;
+          if ((phase - 0.3) / 0.48 < 0.35) {
+            ctx.fillStyle = "#f7cf83"; ctx.fillRect(17, originY - 1, 7, 3);
+            ctx.fillStyle = "#fff0ae"; ctx.fillRect(19, originY - 4, 3, 9);
+          }
+        } else if (state.action === "hit" && phase > 0.2 && phase < 0.75) {
+          ctx.fillStyle = "#f7cf83"; ctx.fillRect(26, 11, 8, 3);
+          ctx.fillStyle = "#fff0ae"; ctx.fillRect(29, 8, 3, 9);
+        } else if (state.action === "move") {
+          ctx.fillStyle = "#c6c8ac"; ctx.fillRect(5, 32, 3, 2);
+          ctx.fillStyle = "#e3d8ad"; ctx.fillRect(0, 33, 3, 2);
+        }
+      }
+
+      const animated = [];
+
+      function drawCell(cell) {
+        const { ctx, unit, faction, size } = cell;
+        const zoom = size / 40;
+        const phase = (performance.now() / 1600) % 1;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, size, size);
+        ctx.save();
+        ctx.scale(zoom, zoom);
+        if (state.backdrop) paintTerrain(ctx, terrainFor(unit));
+        if (unit.family === "air") {
+          ctx.fillStyle = "rgba(24,45,42,.22)"; ctx.fillRect(6, 30, 30, 3);
+        }
+        paintUnit(ctx, unit, faction, phase);
+        ctx.restore();
+      }
+
+      function makeCanvas(size) {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = size;
+        canvas.style.width = `${size}px`;
+        canvas.style.height = `${size}px`;
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = false;
+        return { canvas, ctx };
+      }
+
+      function buildLegend() {
+        const host = document.getElementById("legend");
+        host.innerHTML = FACTIONS.map((id) => {
+          const style = FACTION_STYLES[id];
+          const chips = STYLE_SLOTS.map(
+            (slot) => `<i style="background:${style[slot]}" title="${slot} ${style[slot]}"></i>`,
+          ).join("");
+          return `<div class="swatch"><b>${style.name} · ${style.codename}</b>` +
+            `<i>${style.descriptor}</i><div class="chips">${chips}</div></div>`;
+        }).join("");
+      }
+
+      function buildMatrix() {
+        const factions = state.faction === "all" ? FACTIONS : [state.faction];
+        const size = 40 * state.zoom;
+        const table = document.getElementById("matrix");
+        table.innerHTML =
+          `<tr><th class="row-head">兵种 / 阵营</th>` +
+          factions.map((id) => `<th>${FACTION_STYLES[id].name}</th>`).join("") + `</tr>` +
+          SAMPLE_UNITS.map(
+            (unit) =>
+              `<tr><th class="row-head">${unit.label}<small>${unit.familyLabel}</small></th>` +
+              factions.map(() => `<td></td>`).join("") + `</tr>`,
+          ).join("");
+        animated.length = 0;
+        [...table.querySelectorAll("tr")].slice(1).forEach((row, rowIndex) => {
+          [...row.querySelectorAll("td")].forEach((td, colIndex) => {
+            const { canvas, ctx } = makeCanvas(size);
+            td.appendChild(canvas);
+            animated.push({ ctx, unit: SAMPLE_UNITS[rowIndex], faction: factions[colIndex], size });
+          });
+        });
+      }
+
+      const STRIP_LAYOUT = [
+        ["water", "patrol", "sea", "red"], ["water", "patrol", "sea", "blue"],
+        ["plain", "infantry", "foot", "yellow"], ["forest", "infantry", "foot", "green"],
+        ["plain", "tank", "land", "red"], ["road", "tank", "land", "blue"],
+        ["plain", "heavy", "land", "yellow"], ["forest", "heavy", "land", "green"],
+        ["city", "mech", "foot", "red"], ["plain", "mech", "foot", "blue"],
+        ["plain", "recon", "land", "yellow"], ["road", "recon", "land", "green"],
+        ["plain", "artillery", "land", "red"], ["forest", "artillery", "land", "blue"],
+        ["plain", "rocket", "land", "yellow"], ["road", "rocket", "land", "green"],
+        ["plain", "apc", "land", "red"], ["forest", "apc", "land", "blue"],
+        ["plain", "fighter", "air", "yellow"], ["plain", "copter", "air", "green"],
+      ];
+
+      function buildStrip() {
+        const host = document.getElementById("strip");
+        host.innerHTML = "";
+        for (const [terrain, id, family, faction] of STRIP_LAYOUT) {
+          const tile = document.createElement("div");
+          tile.className = "tile";
+          const ground = makeCanvas(40);
+          paintTerrain(ground.ctx, terrain);
+          const sprite = makeCanvas(40);
+          tile.append(ground.canvas, sprite.canvas);
+          host.appendChild(tile);
+          animated.push({ ctx: sprite.ctx, unit: { id, family }, faction, size: 40 });
+        }
+      }
+
+      function buildCompare() {
+        const land = SAMPLE_UNITS.filter((u) => u.family === "foot" || u.family === "land");
+        const size = 40 * 3;
+        const table = document.getElementById("compare");
+        table.innerHTML =
+          `<tr><th class="row-head">兵种</th><th>当前实现（四色，同一剪影）</th>` +
+          `<th>新方案（四阵营，各自剪影）</th></tr>` +
+          land.map(
+            (unit) =>
+              `<tr><th class="row-head">${unit.label}</th>` +
+              `<td><div class="row-flex" data-old></div></td>` +
+              `<td><div class="row-flex" data-new></div></td></tr>`,
+          ).join("");
+        [...table.querySelectorAll("tr")].slice(1).forEach((row, index) => {
+          const unit = land[index];
+          const oldHost = row.querySelector("[data-old]");
+          const newHost = row.querySelector("[data-new]");
+          for (let i = 0; i < 4; i++) {
+            const oldCell = makeCanvas(size);
+            oldCell.ctx.scale(3, 3);
+            paintUnitArtwork(oldCell.ctx, unit.id, LEGACY_PALETTES[i]);
+            oldHost.appendChild(oldCell.canvas);
+            const newCell = makeCanvas(size);
+            newHost.appendChild(newCell.canvas);
+            animated.push({ ctx: newCell.ctx, unit, faction: FACTIONS[i], size });
+          }
+        });
+      }
+
+      function buildQuestions() {
+        document.getElementById("open-questions").innerHTML = [
+          "1. 空中与舰艇只是提案：本方案给出「战斗机 / 武装直升机」「巡逻舰 / 登陆舰」四套轮廓。是照此推进，还是先只交付陆军的四个阵营？",
+          "2. 绿军用「青枫军」替换现有的「紫星军」。旧存档只存席位名与序号，不受影响，但界面文案会变。",
+          "3. 单位铭牌（<code>app.mjs</code> 的 <code>names</code>）与 <code>TEAM_PALETTES</code> 需要同步换成新阵营色，否则名牌颜色与棋子不一致。",
+          "4. 是否接受「同兵种四阵营共用轮廓、只换皮肤」这条约束。若要更强的玩法差异，应通过新增兵种解决，而不是改轮廓。",
+        ].map((text) => `<p>${text}</p>`).join("");
+      }
+
+      function bindSeg(id, key, parse = (value) => value) {
+        const host = document.getElementById(id);
+        host.addEventListener("click", (event) => {
+          const button = event.target.closest("button");
+          if (!button) return;
+          for (const other of host.querySelectorAll("button"))
+            other.setAttribute("aria-pressed", String(other === button));
+          state[key] = parse(button.dataset.value);
+          if (key === "faction" || key === "zoom") buildMatrix();
+        });
+      }
+      bindSeg("faction-filter", "faction");
+      bindSeg("zoom-filter", "zoom", Number);
+      bindSeg("facing-filter", "facing");
+      bindSeg("action-filter", "action");
+      document.getElementById("bg-toggle").addEventListener("change", (event) => {
+        state.backdrop = event.target.checked;
+      });
+
+      buildLegend();
+      buildMatrix();
+      buildStrip();
+      buildCompare();
+      buildQuestions();
+
+      function frame() {
+        for (const cell of animated) drawCell(cell);
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

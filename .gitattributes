@@ -1,0 +1,19 @@
+# 归一化行尾与文件类型
+* text=auto eol=lf
+
+# 图片与二进制资源
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# 启动脚本保持平台原生行尾
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.command text eol=lf
+
+# 存档与生成物不参与 diff
+data/** -diff
+art-sheets/** -diff

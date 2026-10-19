@@ -1,0 +1,15 @@
+node_modules/
+data/*
+!data/.gitkeep
+.DS_Store
+*.log
+
+# Local planning and verification artifacts
+CONTRACT.md
+output/
+art-sheets/
+
+# Local credentials and environment overrides
+.env
+.env.*
+!.env.example
